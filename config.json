@@ -1,0 +1,16 @@
+{
+"keys": {
+    "shodan":"YOUR-SHODAN-API-KEY"
+    },
+"path":
+    {
+    "basedir":"/home/projects/osint/git/osint-sk-data",
+    "logdir":"/home/projects/osint/log",
+    "bindir":"/home/projects/osint/tmp"
+    },
+"signal":
+    {
+    "src":"+421000123456",
+    "dst":"+421000123456"
+    }
+}
