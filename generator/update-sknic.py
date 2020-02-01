@@ -7,6 +7,7 @@ import logging
 import datetime
 #from datetime import datetime
 from optparse import OptionParser
+from collections import defaultdict
 
 
 # Path to global or local config file
@@ -42,12 +43,15 @@ path_raw_registrars = os.path.join(path_raw,"registrars")
 file_actual_stats_sk_domains = os.path.join(path_actual,"sk-domains.txt")
 file_actual_stats_domain_changes = os.path.join(path_actual,"stats-domain-changes.json")
 file_actual_stats_count_by_registrar = os.path.join(path_actual,"stats-count-by-registrar.json")
+file_actual_stats_count_by_holder = os.path.join(path_actual,"stats-count-by-holder.json")
 file_actual_stats_domains_by_registrar = os.path.join(path_actual,"stats-domains-by-registrar.json")
+file_actual_stats_domains_by_holder = os.path.join(path_actual,"stats-domains-by-holder.json")
 # files to store trends
 file_actual_trends_sk_domains = os.path.join(path_actual,"sk-domains.txt")
 file_actual_trends_domain_changes = os.path.join(path_actual,"trends-domain-changes.json")
 file_actual_trends_count_by_registrar = os.path.join(path_actual,"trends-count-by-registrar.json")
-file_actual_trends_domains_by_registrar = os.path.join(path_actual,"trends-domains-by-registrar.json")
+# file_actual_trends_domains_by_registrar = os.path.join(path_actual,"trends-domains-by-registrar.json")
+# file_actual_trends_domains_by_holder = os.path.join(path_actual,"trends-domains-by-holder.json")
 # Source data from SK-NIC
 url_domains="https://sk-nic.sk/subory/domains.txt"
 url_registrators="https://sk-nic.sk/subory/registrars.txt"
@@ -117,6 +121,14 @@ def download_source_data():
 def parse_domains_file(filename):
     
     result_actual_stats_sk_domains = []
+    result_actual_stats_count_by_registrar = {}
+    result_actual_stats_count_by_holder = {}
+    result_actual_stats_domains_by_registrar = {}
+    result_actual_stats_domains_by_holder = {}
+    result_actual_stats_domains_by_registrar = defaultdict(list)
+    result_actual_stats_domains_by_holder = defaultdict(list)
+    result_actual_stats_count_by_registrar = defaultdict(int)
+    result_actual_stats_count_by_holder = defaultdict(int)
 
     with open(filename) as fp:
         line = fp.readline()
@@ -126,19 +138,55 @@ def parse_domains_file(filename):
             cnt += 1
             # Skip the first 9 lines containing the header
             if cnt >=  9:
-                fields=line.split(';')
-                # append to list of domains
-                result_actual_stats_sk_domains.append(fields[0])
+                if len(line) != 0:
+                    fields=line.split(';')
+                    # append to list of domains
+                    result_actual_stats_sk_domains.append(fields[0])
+                    # increment group counters
+                    result_actual_stats_count_by_registrar[fields[1]] += 1
+                    result_actual_stats_count_by_holder[fields[2]] += 1
+                    # add values to groups
+                    result_actual_stats_domains_by_registrar[fields[1]].append(fields[0])
+                    result_actual_stats_domains_by_holder[fields[2]].append(fields[0])
+
         logging.debug("Processed %d lines from %s" % (cnt,filename))
 
-    # Save the domains file 
-    with open(file_actual_stats_sk_domains, "w") as text_file:
-        text_file.write('\n'.join(result_actual_stats_sk_domains))
+    if testmode:
+        print("[ ] TESTMODE: Wrote %d lines to %s" % (len(result_actual_stats_sk_domains),file_actual_stats_sk_domains))
+        print("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_domains_by_holder),file_actual_stats_domains_by_holder))
+        print("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_domains_by_registrar),file_actual_stats_domains_by_registrar))
+        print("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_holder),file_actual_stats_count_by_holder))
+        print("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_registrar),file_actual_stats_count_by_registrar))
+        
+        
+    else:
+        # Save the domains file 
+        with open(file_actual_stats_sk_domains, "w") as outfile:
+            outfile.write('\n'.join(result_actual_stats_sk_domains))
+        # Save the domains by holder
+        with open(file_actual_stats_domains_by_holder, "w") as outfile:
+            json.dump(result_actual_stats_domains_by_holder, outfile, indent=4)
+        # Save the domains by registrar 
+        with open(file_actual_stats_domains_by_registrar, "w") as outfile:
+            json.dump(result_actual_stats_domains_by_registrar, outfile, indent=4)
+        # Save the count by holder
+        with open(file_actual_stats_count_by_holder, "w") as outfile:
+            json.dump(result_actual_stats_count_by_holder, outfile, indent=4)
+        # Save the count by registrar
+        with open(file_actual_stats_count_by_registrar, "w") as outfile:
+            json.dump(result_actual_stats_count_by_registrar, outfile, indent=4)
+
+    # log stats for debug purposes            
     logging.debug("Wrote %d lines to %s" % (len(result_actual_stats_sk_domains),file_actual_stats_sk_domains))
+    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_domains_by_holder),file_actual_stats_domains_by_holder))
+    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_domains_by_registrar),file_actual_stats_domains_by_registrar))
+    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_holder),file_actual_stats_count_by_holder))
+    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_registrar),file_actual_stats_count_by_registrar))
 
 
 
 def main():
+    global testmode
 
     usage = "usage: %prog [options] "
     parser = OptionParser(usage)
