@@ -5,7 +5,8 @@ import time
 import json
 import logging
 import datetime
-#from datetime import datetime
+import operator
+import collections
 from optparse import OptionParser
 from collections import defaultdict
 
@@ -50,8 +51,6 @@ file_actual_stats_domains_by_holder = os.path.join(path_actual,"stats-domains-by
 file_actual_trends_sk_domains = os.path.join(path_actual,"sk-domains.txt")
 file_actual_trends_domain_changes = os.path.join(path_actual,"trends-domain-changes.json")
 file_actual_trends_count_by_registrar = os.path.join(path_actual,"trends-count-by-registrar.json")
-# file_actual_trends_domains_by_registrar = os.path.join(path_actual,"trends-domains-by-registrar.json")
-# file_actual_trends_domains_by_holder = os.path.join(path_actual,"trends-domains-by-holder.json")
 # Source data from SK-NIC
 url_domains="https://sk-nic.sk/subory/domains.txt"
 url_registrators="https://sk-nic.sk/subory/registrars.txt"
@@ -169,12 +168,12 @@ def parse_domains_file(filename):
         # Save the domains by registrar 
         with open(file_actual_stats_domains_by_registrar, "w") as outfile:
             json.dump(result_actual_stats_domains_by_registrar, outfile, indent=4)
-        # Save the count by holder
+        # Save the count by holder (sorted)
         with open(file_actual_stats_count_by_holder, "w") as outfile:
-            json.dump(result_actual_stats_count_by_holder, outfile, indent=4)
-        # Save the count by registrar
+            json.dump(collections.OrderedDict(sorted(result_actual_stats_count_by_holder.items(), reverse=True, key=operator.itemgetter(1))), outfile, indent=4)
+        # Save the count by registrar (sorted)
         with open(file_actual_stats_count_by_registrar, "w") as outfile:
-            json.dump(result_actual_stats_count_by_registrar, outfile, indent=4)
+            json.dump(collections.OrderedDict(sorted(result_actual_stats_count_by_registrar.items(), reverse=True, key=operator.itemgetter(1))), outfile, indent=4)
 
     # log stats for debug purposes            
     logging.debug("Wrote %d lines to %s" % (len(result_actual_stats_sk_domains),file_actual_stats_sk_domains))
@@ -196,7 +195,7 @@ def main():
     parser.add_option("-u", "--update", action="store_true", dest="update",help="Update trends")
     parser.add_option("-d", "--debug", action="store_true", dest="debugmode",help="Enable DEBUG logging")
     # Parse arguments
-    (options, args) = parser.parse_args()
+    (options, _) = parser.parse_args()
 
     if options.filename:
         if not os.path.isfile(options.filename):
@@ -223,9 +222,10 @@ def main():
     else:        
         # create the subfolder structure
         create_dirs()
-        # download source data from SK-NIC
-        status = download_source_data()
-        print json.dumps(status, indent=4)
+        if not options.actual and not options.update:
+            # download source data from SK-NIC
+            status = download_source_data()
+            print json.dumps(status, indent=4)
     
 
     # Parse the input file
