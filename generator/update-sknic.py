@@ -124,6 +124,7 @@ def parse_domains_file(filename_domains,filename_registrars):
     result_actual_stats_count_by_holder = {}
     result_actual_stats_domains_by_registrar = {}
     result_actual_stats_domains_by_holder = {}
+    result_actual_stats_domains_diff = {}
     result_actual_stats_domains_by_registrar = defaultdict(list)
     result_actual_stats_domains_by_holder = defaultdict(list)
     result_actual_stats_count_by_registrar = defaultdict(int)
@@ -188,6 +189,15 @@ def parse_domains_file(filename_domains,filename_registrars):
     del(translated_actual_stats_count_by_registrar)
     del(translated_actual_stats_domains_by_registrar)
 
+    # Read results to calculate diff
+    if os.path.isfile(file_actual_stats_sk_domains):            
+        with open(file_actual_stats_sk_domains, 'r') as file_old:
+            old_stats_sk_domains = file_old.readlines()
+        # strip newlines    
+        old_stats_sk_domains = [line.strip() for line in old_stats_sk_domains]
+        result_actual_stats_domains_diff['deleted'] = list(set(old_stats_sk_domains) - set(result_actual_stats_sk_domains))
+        result_actual_stats_domains_diff['added'] = list(set(result_actual_stats_sk_domains) - set(old_stats_sk_domains))
+    logging.debug("[ ] TESTMODE: Domains Added %d , Deleted %d" % (len(result_actual_stats_domains_diff['added']),len(result_actual_stats_domains_diff['deleted'])))
 
     if testmode:
         print("[ ] TESTMODE: Wrote %d lines to %s" % (len(result_actual_stats_sk_domains),file_actual_stats_sk_domains))
@@ -195,12 +205,9 @@ def parse_domains_file(filename_domains,filename_registrars):
         print("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_domains_by_registrar),file_actual_stats_domains_by_registrar))
         print("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_holder),file_actual_stats_count_by_holder))
         print("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_registrar),file_actual_stats_count_by_registrar))
-        
+        print("[ ] TESTMODE: Domains Added %d , Deleted %d" % (len(result_actual_stats_domains_diff['added']),len(result_actual_stats_domains_diff['deleted'])))
         
     else:
-        # Save the domains file 
-        with open(file_actual_stats_sk_domains, "w") as outfile:
-            outfile.write('\n'.join(result_actual_stats_sk_domains))
         # Save the domains by holder
         with open(file_actual_stats_domains_by_holder, "w") as outfile:
             json.dump(result_actual_stats_domains_by_holder, outfile, indent=4)
@@ -214,12 +221,21 @@ def parse_domains_file(filename_domains,filename_registrars):
         with open(file_actual_stats_count_by_registrar, "w") as outfile:
             json.dump(collections.OrderedDict(sorted(result_actual_stats_count_by_registrar.items(), reverse=True, key=operator.itemgetter(1))), outfile, indent=4)
 
+        # save diff, before we overwrite the source list
+        with open(file_actual_stats_domain_changes, "w") as outfile:
+            json.dump(result_actual_stats_domains_diff, outfile, indent=4)
+
+        # Save the domains file 
+        with open(file_actual_stats_sk_domains, "w") as outfile:
+            outfile.write('\n'.join(result_actual_stats_sk_domains))
+
+
     # log stats for debug purposes            
     logging.debug("Wrote %d lines to %s" % (len(result_actual_stats_sk_domains),file_actual_stats_sk_domains))
-    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_domains_by_holder),file_actual_stats_domains_by_holder))
-    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_domains_by_registrar),file_actual_stats_domains_by_registrar))
-    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_holder),file_actual_stats_count_by_holder))
-    logging.debug("[ ] TESTMODE: Wrote %d keys to %s" % (len(result_actual_stats_count_by_registrar),file_actual_stats_count_by_registrar))
+    logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_domains_by_holder),file_actual_stats_domains_by_holder))
+    logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_domains_by_registrar),file_actual_stats_domains_by_registrar))
+    logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_count_by_holder),file_actual_stats_count_by_holder))
+    logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_count_by_registrar),file_actual_stats_count_by_registrar))
 
 
 
