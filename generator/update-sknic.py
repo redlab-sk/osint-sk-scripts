@@ -117,8 +117,8 @@ def download_source_data():
     status['registrars']={'file':registrators_save_to,'size':humansize(registrators_file_size)}
     return status
 
-def parse_domains_file(filename):
-    
+def parse_domains_file(filename_domains,filename_registrars):
+    # domains
     result_actual_stats_sk_domains = []
     result_actual_stats_count_by_registrar = {}
     result_actual_stats_count_by_holder = {}
@@ -128,8 +128,27 @@ def parse_domains_file(filename):
     result_actual_stats_domains_by_holder = defaultdict(list)
     result_actual_stats_count_by_registrar = defaultdict(int)
     result_actual_stats_count_by_holder = defaultdict(int)
+    # translations
+    translated_actual_stats_domains_by_registrar = {}
+    translated_actual_stats_count_by_registrar = {}
+    # registrars
+    result_actual_registrars = {}
 
-    with open(filename) as fp:
+    with open(filename_registrars) as fp:
+        line = fp.readline()
+        cnt = 1
+        while line:
+            line = fp.readline()
+            cnt += 1
+            # Skip the first 9 lines containing the header
+            if cnt >=  9:
+                if len(line) != 0:
+                    fields=line.split(';')
+                    result_actual_registrars[fields[0]] =  fields[1]
+        logging.debug("Processed %d lines from %s" % (cnt,filename_domains))
+    
+
+    with open(filename_domains) as fp:
         line = fp.readline()
         cnt = 1
         while line:
@@ -148,7 +167,27 @@ def parse_domains_file(filename):
                     result_actual_stats_domains_by_registrar[fields[1]].append(fields[0])
                     result_actual_stats_domains_by_holder[fields[2]].append(fields[0])
 
-        logging.debug("Processed %d lines from %s" % (cnt,filename))
+        logging.debug("Processed %d lines from %s" % (cnt,filename_domains))
+
+    # key translation of registrats id->name
+    for k, v in result_actual_stats_count_by_registrar.items():
+        try:
+            translated_actual_stats_count_by_registrar[result_actual_registrars[k]] = v
+        except KeyError:
+            translated_actual_stats_count_by_registrar[k] = v
+            logging.debug("No match for registrar key %s" % k)
+    for k, v in result_actual_stats_domains_by_registrar.items():
+        try:
+            translated_actual_stats_domains_by_registrar[result_actual_registrars[k]] = v
+        except KeyError:
+            translated_actual_stats_domains_by_registrar[k] = v
+            logging.debug("No match for registrar key %s" % k)
+    # cleanup
+    result_actual_stats_domains_by_registrar = translated_actual_stats_domains_by_registrar
+    result_actual_stats_count_by_registrar = translated_actual_stats_count_by_registrar
+    del(translated_actual_stats_count_by_registrar)
+    del(translated_actual_stats_domains_by_registrar)
+
 
     if testmode:
         print("[ ] TESTMODE: Wrote %d lines to %s" % (len(result_actual_stats_sk_domains),file_actual_stats_sk_domains))
@@ -190,6 +229,7 @@ def main():
     usage = "usage: %prog [options] "
     parser = OptionParser(usage)
     parser.add_option("-f", "--file", dest="filename", help="read data from FILE", metavar="FILE")
+    parser.add_option("-r", "--registrars", dest="filename_registrars", help="read registrars from FILE", metavar="FILE")
     parser.add_option("-t", "--test", action="store_true", dest="testmode",help="Test mode, no file modification.")
     parser.add_option("-a", "--actual", action="store_true", dest="actual",help="Update actual stats")
     parser.add_option("-u", "--update", action="store_true", dest="update",help="Update trends")
@@ -206,6 +246,14 @@ def main():
         if options.actual or options.update:
             print("[!] Input file not specified!")
             exit(2)
+
+    if options.filename_registrars:
+        if not os.path.isfile(options.filename_registrars):
+            logging.error('File not found!')
+            print("[!] Registrars file not found!")
+            exit(3)
+
+
 
     # create logger
     if options.debugmode:
@@ -229,7 +277,7 @@ def main():
     
 
     # Parse the input file
-    parse_domains_file(options.filename)
+    parse_domains_file(options.filename,options.filename_registrars)
 
 
 
