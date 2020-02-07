@@ -9,7 +9,7 @@ import operator
 import collections
 from optparse import OptionParser
 from collections import defaultdict
-
+from itertools import islice
 
 # Path to global or local config file
 config_global = "/usr/local/etc/osint/config.json"
@@ -48,9 +48,9 @@ file_actual_stats_count_by_holder = os.path.join(path_actual,"stats-count-by-hol
 file_actual_stats_domains_by_registrar = os.path.join(path_actual,"stats-domains-by-registrar.json")
 file_actual_stats_domains_by_holder = os.path.join(path_actual,"stats-domains-by-holder.json")
 # files to store trends
-file_actual_trends_sk_domains = os.path.join(path_actual,"sk-domains.txt")
-file_actual_trends_domain_changes = os.path.join(path_actual,"trends-domain-changes.json")
-file_actual_trends_count_by_registrar = os.path.join(path_actual,"trends-count-by-registrar.json")
+file_actual_trends_domain_changes = os.path.join(path_trends,"trends-domain-changes.json")
+file_actual_trends_count_by_registrar = os.path.join(path_trends,"trends-count-by-registrar.json")
+file_actual_trends_count_by_holder = os.path.join(path_trends,"trends-count-by-holder.json")
 # Source data from SK-NIC
 url_domains="https://sk-nic.sk/subory/domains.txt"
 url_registrators="https://sk-nic.sk/subory/registrars.txt"
@@ -237,6 +237,53 @@ def parse_domains_file(filename_domains,filename_registrars):
     logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_count_by_holder),file_actual_stats_count_by_holder))
     logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_count_by_registrar),file_actual_stats_count_by_registrar))
 
+def dummy_trends_file(trends_file,dict_key):
+    data = {dict_key:[]}
+    with open(trends_file, 'w+') as outfile:
+        json.dump(data, outfile, indent=4)
+    outfile.close()
+
+
+def update_trends_file(stats_file,trends_file,dict_key,simple_mode=False):  
+    if not os.path.isfile(stats_file):
+        print("[!] Stats file is missing: %s" % stats_file)
+        logging.error("[!] Stats file is missing: %s" % stats_file)
+        exit(5)
+
+    if not os.path.isfile(trends_file):
+        dummy_trends_file(trends_file,dict_key)
+
+    # read actual stats
+    with open(stats_file) as json_file:
+            data_stats = json.load(json_file)
+
+    if not simple_mode:
+        # create an ordered list DESC by VALUE
+        data_stats = collections.OrderedDict(sorted(data_stats.items(), reverse=True, key=operator.itemgetter(1)))
+        # get only the Top10
+        data_stats = dict(data_stats.items()[:10])
+
+    # read actual trends
+    with open(trends_file) as json_file:
+            data_trends = json.load(json_file)
+
+    data_stats["date"]= date_today()
+
+    # append last stats to trends
+    data_trends[data_trends.keys()[0]].append(data_stats)
+    
+    # print(data_trends)
+    with open(trends_file, 'w') as outfile:
+            json.dump(data_trends, outfile, indent=4)
+
+
+def update_trends_from_actual():
+    update_trends_file(file_actual_stats_count_by_registrar,file_actual_trends_count_by_registrar,'domains-count-by-registrar')
+    update_trends_file(file_actual_stats_count_by_holder,file_actual_trends_count_by_holder,'domains-count-by-holder')
+    update_trends_file(file_actual_stats_domain_changes,file_actual_trends_domain_changes,'domain-changes',simple_mode=True)
+
+# file_actual_trends_domain_changes = os.path.join(path_actual,"trends-domain-changes.json")
+
 
 
 def main():
@@ -259,7 +306,7 @@ def main():
             print("[!] File not found!")
             exit(1)
     else:
-        if options.actual or options.update:
+        if options.actual:
             print("[!] Input file not specified!")
             exit(2)
 
@@ -292,8 +339,11 @@ def main():
             print json.dumps(status, indent=4)
     
 
-    # Parse the input file
-    parse_domains_file(options.filename,options.filename_registrars)
+    if options.actual:
+        # Parse the input file
+        parse_domains_file(options.filename,options.filename_registrars)
+    if options.update:
+        update_trends_from_actual()
 
 
 
