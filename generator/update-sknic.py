@@ -14,7 +14,7 @@ from itertools import islice
 # Path to global or local config file
 config_global = "/usr/local/etc/osint/config.json"
 config_local = os.path.expanduser("~/.osint.json")
-
+# Do we run in testmode?
 testmode = False
 
 if os.path.exists(config_global) and os.path.getsize(config_global) > 0:
@@ -55,6 +55,7 @@ file_actual_trends_count_by_holder = os.path.join(path_trends,"trends-count-by-h
 url_domains="https://sk-nic.sk/subory/domains.txt"
 url_registrators="https://sk-nic.sk/subory/registrars.txt"
 
+# To make the filesize "human readable"
 suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
 def humansize(nbytes):
     i = 0
@@ -64,9 +65,11 @@ def humansize(nbytes):
     f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
     return '%s %s' % (f, suffixes[i])
 
+# Today's date in YMD format
 def date_today():
     return datetime.datetime.now().strftime("%Y-%m-%d")
 
+# Download the domains export file
 def get_domains_file(localname):
     if not os.path.isfile(localname):
         try:
@@ -80,6 +83,7 @@ def get_domains_file(localname):
         logging.warning('File '+localname+' already exists. Size: '+str(os.path.getsize(localname)))
         return 0
 
+# Download the registrars export file
 def get_registrators_file(localname):
     if not os.path.isfile(localname):
         try:
@@ -93,6 +97,7 @@ def get_registrators_file(localname):
         logging.warning('File '+localname+' already exists. Size: '+str(os.path.getsize(localname)))
         return 0
 
+# Make a directory if needed
 def create_dir(path):
     try:
         if not os.path.exists(path):
@@ -101,10 +106,12 @@ def create_dir(path):
     except Exception, e:
         print "[!] Unable to create directory %s : %s" % path, e            
 
+# Create the subdirs 
 def create_dirs():
     create_dir(path_raw_domains)
     create_dir(path_raw_registrars)
 
+# Download the domains and registrars source files and return filenames and sizes (zero if file exists)
 def download_source_data():
     status = {'domains':{},'registrars':{}}
     domains_save_to=os.path.join(path_raw_domains,'domains_'+date_today()+'.txt')
@@ -117,6 +124,7 @@ def download_source_data():
     status['registrars']={'file':registrators_save_to,'size':humansize(registrators_file_size)}
     return status
 
+# Generate all the stats and trends from downloaded files
 def parse_domains_file(filename_domains,filename_registrars):
     # domains
     result_actual_stats_sk_domains = []
@@ -170,7 +178,7 @@ def parse_domains_file(filename_domains,filename_registrars):
 
         logging.debug("Processed %d lines from %s" % (cnt,filename_domains))
 
-    # key translation of registrats id->name
+    # key translation of registrars id->name
     for k, v in result_actual_stats_count_by_registrar.items():
         try:
             translated_actual_stats_count_by_registrar[result_actual_registrars[k]] = v
@@ -237,13 +245,14 @@ def parse_domains_file(filename_domains,filename_registrars):
     logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_count_by_holder),file_actual_stats_count_by_holder))
     logging.debug("Wrote %d keys to %s" % (len(result_actual_stats_count_by_registrar),file_actual_stats_count_by_registrar))
 
+# If there are no trends data create a dummy file
 def dummy_trends_file(trends_file,dict_key):
     data = {dict_key:[]}
     with open(trends_file, 'w+') as outfile:
         json.dump(data, outfile, indent=4)
     outfile.close()
 
-
+# Update a trend
 def update_trends_file(stats_file,trends_file,dict_key,count_mode=False):  
     if not os.path.isfile(stats_file):
         print("[!] Stats file is missing: %s" % stats_file)
@@ -281,13 +290,11 @@ def update_trends_file(stats_file,trends_file,dict_key,count_mode=False):
             json.dump(data_trends, outfile, indent=4)
 
 
+# Update all the trends
 def update_trends_from_actual():
     update_trends_file(file_actual_stats_count_by_registrar,file_actual_trends_count_by_registrar,'domains-count-by-registrar')
     update_trends_file(file_actual_stats_count_by_holder,file_actual_trends_count_by_holder,'domains-count-by-holder')
     update_trends_file(file_actual_stats_domain_changes,file_actual_trends_domain_changes,'domain-changes',count_mode=True)
-
-# file_actual_trends_domain_changes = os.path.join(path_actual,"trends-domain-changes.json")
-
 
 
 def main():
