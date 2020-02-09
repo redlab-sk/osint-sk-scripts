@@ -244,7 +244,7 @@ def dummy_trends_file(trends_file,dict_key):
     outfile.close()
 
 
-def update_trends_file(stats_file,trends_file,dict_key,simple_mode=False):  
+def update_trends_file(stats_file,trends_file,dict_key,count_mode=False):  
     if not os.path.isfile(stats_file):
         print("[!] Stats file is missing: %s" % stats_file)
         logging.error("[!] Stats file is missing: %s" % stats_file)
@@ -257,11 +257,15 @@ def update_trends_file(stats_file,trends_file,dict_key,simple_mode=False):
     with open(stats_file) as json_file:
             data_stats = json.load(json_file)
 
-    if not simple_mode:
+    if not count_mode:
         # create an ordered list DESC by VALUE
         data_stats = collections.OrderedDict(sorted(data_stats.items(), reverse=True, key=operator.itemgetter(1)))
         # get only the Top10
         data_stats = dict(data_stats.items()[:10])
+    else:
+        # count items for "domains-count-by-holder"
+        data_stats["added"]=len(data_stats["added"])
+        data_stats["deleted"]=len(data_stats["deleted"])
 
     # read actual trends
     with open(trends_file) as json_file:
@@ -280,7 +284,7 @@ def update_trends_file(stats_file,trends_file,dict_key,simple_mode=False):
 def update_trends_from_actual():
     update_trends_file(file_actual_stats_count_by_registrar,file_actual_trends_count_by_registrar,'domains-count-by-registrar')
     update_trends_file(file_actual_stats_count_by_holder,file_actual_trends_count_by_holder,'domains-count-by-holder')
-    update_trends_file(file_actual_stats_domain_changes,file_actual_trends_domain_changes,'domain-changes',simple_mode=True)
+    update_trends_file(file_actual_stats_domain_changes,file_actual_trends_domain_changes,'domain-changes',count_mode=True)
 
 # file_actual_trends_domain_changes = os.path.join(path_actual,"trends-domain-changes.json")
 
